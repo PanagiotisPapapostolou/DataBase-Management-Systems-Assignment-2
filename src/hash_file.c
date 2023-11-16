@@ -16,8 +16,7 @@
 }
 
 HT_ErrorCode HT_Init() {
-  //insert code here
-  return HT_OK;
+  
 }
 
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {

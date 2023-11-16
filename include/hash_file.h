@@ -13,6 +13,13 @@ typedef struct Record {
 	char city[20];
 } Record;
 
+typedef struct HT_info {
+	int global_depth;
+	int capacity;
+	int bytes_size;
+
+} HT_info;
+
 /*
  * Η συνάρτηση HT_Init χρησιμοποιείται για την αρχικοποίηση κάποιον δομών που μπορεί να χρειαστείτε. 
  * Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται HT_OK, ενώ σε διαφορετική περίπτωση κωδικός λάθους.
