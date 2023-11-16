@@ -20,6 +20,12 @@ typedef struct HT_info {
 
 } HT_info;
 
+
+typedef struct file_details {
+	int num_of_files;
+	struct HT_info* opened_files;
+
+} File_details;
 /*
  * Η συνάρτηση HT_Init χρησιμοποιείται για την αρχικοποίηση κάποιον δομών που μπορεί να χρειαστείτε. 
  * Σε περίπτωση που εκτελεστεί επιτυχώς, επιστρέφεται HT_OK, ενώ σε διαφορετική περίπτωση κωδικός λάθους.
