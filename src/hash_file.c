@@ -15,12 +15,16 @@
   }                         \
 }
 
+
 HT_ErrorCode HT_Init() {
   File_details* fd;
+  fd->num_of_files=0;
+  fd->opened_files=(HT_info*)malloc(MAX_OPEN_FILES*sizeof(HT_info));
   return HT_OK;
 }
 
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
+  printf("%d\n", fd->num_of_files);
   //insert code here
   return HT_OK;
 }
