@@ -17,12 +17,56 @@
 
 File_details* fd;
 
+char* intToBinary(int num, int depth) {
+    int max_bits = depth;
+
+    if (num == 0) {
+        char* binaryStr = (char*)malloc(2 * sizeof(char));
+        strcpy(binaryStr, "0");
+        return binaryStr;
+    }
+
+    int binary[32]; // Assuming 32-bit integers
+    int index = 0;
+
+    while (num > 0) {
+        binary[index++] = num % 2;
+        num = num / 2;
+    }
+
+    char* binaryStr = (char*)malloc((index + 1) * sizeof(char));
+    int strIndex = 0;
+
+    for (int i = index - 1; i >= 0; i--) {
+        binaryStr[strIndex++] = binary[i] + '0';
+    }
+
+    binaryStr[strIndex] = '\0';
+
+    if (strlen(binaryStr) < max_bits) {
+      char* remaining = (char*)malloc(sizeof(char)*(max_bits - strlen(binaryStr)));
+      for (int i = 0; i < max_bits - strlen(binaryStr); i++)
+        remaining[i] = '0';
+      
+      strcat(remaining, binaryStr);
+      return remaining;
+    }
+
+    return binaryStr;
+}
+
+
+int hash_function(int id) {
+
+}
+
 
 
 HT_ErrorCode HT_Init() {
   fd=(File_details*)malloc(sizeof(File_details));
   fd->opened_files=(HT_info*)malloc(MAX_OPEN_FILES*sizeof(HT_info));
   fd->num_of_files=0;
+
   return HT_OK;
 }
 
@@ -33,10 +77,11 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
   if(fd->num_of_files+1<MAX_OPEN_FILES) {
     fd->opened_files[fd->num_of_files].global_depth=depth;
     fd->opened_files[fd->num_of_files].capacity=BF_BLOCK_SIZE/sizeof(Record);
-    printf("hi\n");
-    printf("%d\n", fd->opened_files[fd->num_of_files].global_depth);
     strcpy(fd->opened_files[fd->num_of_files].filename,filename);
     fd->num_of_files++;
+
+    printf("%s\n", intToBinary(1, fd->opened_files[fd->num_of_files-1].global_depth));
+
     return HT_OK;
   }
   else {

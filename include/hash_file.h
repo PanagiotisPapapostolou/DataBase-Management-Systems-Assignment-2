@@ -16,7 +16,7 @@ typedef struct Record {
 typedef struct HT_info {
 	int global_depth;
 	int capacity;
-	char* filename;
+	char filename[50];
 	//int bytes_size;
 	int  file_desc;
 
