@@ -56,14 +56,14 @@ char* intToBinary(int num, int depth) {
 }
 
 
-int hash_function(int id) {
-
+char* hash_function(int id, int depth) {
+  return intToBinary(id, depth);
 }
 
 
 
 HT_ErrorCode HT_Init() {
-  fd=(File_details*)malloc(sizeof(File_details));
+  fd=(File_details*)malloc(sizeof(File_details)); 
   fd->opened_files=(HT_info*)malloc(MAX_OPEN_FILES*sizeof(HT_info));
   fd->num_of_files=0;
 
@@ -71,16 +71,14 @@ HT_ErrorCode HT_Init() {
 }
 
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
-  
-  
   CALL_BF(BF_CreateFile(filename));
   if(fd->num_of_files+1<MAX_OPEN_FILES) {
     fd->opened_files[fd->num_of_files].global_depth=depth;
     fd->opened_files[fd->num_of_files].capacity=BF_BLOCK_SIZE/sizeof(Record);
-    strcpy(fd->opened_files[fd->num_of_files].filename,filename);
+    strcpy(fd->opened_files[fd->num_of_files].filename, filename);
     fd->num_of_files++;
-
-    printf("%s\n", intToBinary(1, fd->opened_files[fd->num_of_files-1].global_depth));
+    fd->opened_files[fd->num_of_files].num_of_buckets = 2;
+    fd->opened_files[fd->num_of_files].oraia_petalouda = (Bucket_info*)malloc(sizeof(Bucket_info) * 2);
 
     return HT_OK;
   }
@@ -100,17 +98,34 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
         strcpy(fd->opened_files[fd->num_of_files].filename,fileName);
         fd->opened_files[fd->num_of_files].file_desc=fd->opened_files[i].file_desc;
         *indexDesc=fd->num_of_files;
+        
+        for (int j = 0; j < fd->opened_files[i].num_of_buckets; j++)
+          fd->opened_files[fd->num_of_files].oraia_petalouda[j].local_depth = fd->opened_files[i].oraia_petalouda[j].local_depth;
+        
         fd->num_of_files++;
-        flag=0; 
+        flag=0;
+
         break;
       }
     }
     if(flag){
       int file_desc;
       CALL_BF(BF_OpenFile(fileName, &file_desc));
+      
+      for (int j = 0; j < 2; j++) {
+        fd->opened_files[fd->num_of_files].oraia_petalouda[j].local_depth = 1;
+
+        BF_Block* new_block;
+        BF_Block_Init(&new_block);
+        CALL_BF(BF_AllocateBlock(file_desc, new_block));
+        CALL_BF(BF_UnpinBlock(new_block));
+      }
+      
       fd->opened_files[fd->num_of_files].file_desc=file_desc;
       *indexDesc=fd->num_of_files;
       fd->num_of_files++;
+
+
     }
     return HT_OK;
   }
@@ -126,7 +141,8 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
 }
 
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
-  //insert code here
+  char* index = hash_function(record.id, fd->opened_files[indexDesc].global_depth);
+
   return HT_OK;
 }
 

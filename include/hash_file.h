@@ -13,15 +13,22 @@ typedef struct Record {
 	char city[20];
 } Record;
 
+typedef struct Bucket_info {
+	int local_depth;
+	int num_of_records;
+} Bucket_info;
+
 typedef struct HT_info {
 	int global_depth;
 	int capacity;
 	char filename[50];
 	//int bytes_size;
 	int  file_desc;
-
+	int num_of_buckets;
+	Bucket_info* oraia_petalouda;
 } HT_info;
 
+// Mia oraia petalouda, mia oraia petalouda. Mia oraia... petalouda ai sto diaolo!!
 
 typedef struct file_details {
 	int num_of_files;
