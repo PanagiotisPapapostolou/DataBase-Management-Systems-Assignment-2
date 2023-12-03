@@ -19,7 +19,7 @@ typedef struct Bucket_info {
 } Bucket_info;
 
 typedef struct HT_info {
-	int global_depth;
+	int global_depth;	
 	int capacity;
 	char filename[50];
 	//int bytes_size;

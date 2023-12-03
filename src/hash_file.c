@@ -76,7 +76,6 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
     fd->opened_files[fd->num_of_files].global_depth=depth;
     fd->opened_files[fd->num_of_files].capacity=BF_BLOCK_SIZE/sizeof(Record);
     strcpy(fd->opened_files[fd->num_of_files].filename, filename);
-    fd->num_of_files++;
     fd->opened_files[fd->num_of_files].num_of_buckets = 2;
     fd->opened_files[fd->num_of_files].oraia_petalouda = (Bucket_info*)malloc(sizeof(Bucket_info) * 2);
 
@@ -89,29 +88,31 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 }
 
 HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
-  if(fd->num_of_files+1<MAX_OPEN_FILES) {
+  if(fd->num_of_files+1<MAX_OPEN_FILES) {\
     int flag=1;
-    for(int i=0; i<fd->num_of_files;i++) {
-      if(strcmp(fd->opened_files[i].filename, fileName)==0) {
-        fd->opened_files[fd->num_of_files].global_depth=fd->opened_files[i].global_depth;
-        fd->opened_files[fd->num_of_files].capacity=BF_BLOCK_SIZE/sizeof(Record);
-        strcpy(fd->opened_files[fd->num_of_files].filename,fileName);
-        fd->opened_files[fd->num_of_files].file_desc=fd->opened_files[i].file_desc;
-        *indexDesc=fd->num_of_files;
-        
-        for (int j = 0; j < fd->opened_files[i].num_of_buckets; j++)
-          fd->opened_files[fd->num_of_files].oraia_petalouda[j].local_depth = fd->opened_files[i].oraia_petalouda[j].local_depth;
-        
-        fd->num_of_files++;
-        flag=0;
+    if(strcmp(fd->opened_files[fd->num_of_files].filename, fileName)!=0){
+      
+      for(int i=0; i<fd->num_of_files;i++) {
+        if(strcmp(fd->opened_files[i].filename, fileName)==0) {
+          fd->opened_files[fd->num_of_files].global_depth=fd->opened_files[i].global_depth;
+          fd->opened_files[fd->num_of_files].capacity=BF_BLOCK_SIZE/sizeof(Record);
+          strcpy(fd->opened_files[fd->num_of_files].filename,fileName);
+          fd->opened_files[fd->num_of_files].file_desc=fd->opened_files[i].file_desc;
+          *indexDesc=fd->num_of_files;
+          
+          for (int j = 0; j < fd->opened_files[i].num_of_buckets; j++)
+            fd->opened_files[fd->num_of_files].oraia_petalouda[j].local_depth = fd->opened_files[i].oraia_petalouda[j].local_depth;
+          
+          fd->num_of_files++;
+          flag=0;
 
-        break;
+          break;
+        }
       }
     }
     if(flag){
       int file_desc;
       CALL_BF(BF_OpenFile(fileName, &file_desc));
-      
       for (int j = 0; j < 2; j++) {
         fd->opened_files[fd->num_of_files].oraia_petalouda[j].local_depth = 1;
 
