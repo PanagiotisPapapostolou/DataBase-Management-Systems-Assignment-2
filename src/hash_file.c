@@ -56,32 +56,22 @@ File_details* fd;
 // }
 
 int checkNBits(int num, int n) {
-    // Calculate a mask with the first n bits set to 1
-    int mask = ~0<<((sizeof(int)*8-n));
-
-    // Use bitwise AND to check if the first n bits are set
-    int maskedValue = num & mask;
-    printf("%d\n", maskedValue);
-    return maskedValue ;
-}
-
-
-int binaryToDecimal(int binaryNum) {
-    int decimalNum = 0, base = 1, remainder;
-
-    while (binaryNum > 0) {
-        remainder = binaryNum % 10;
-        decimalNum += remainder * base;
-        binaryNum /= 10;
-        base *= 2;
+    int numBits = sizeof(num) ;
+    
+    // Ensure that n is within a valid range
+    if (n <= 0 || n > numBits) {
+        printf("Invalid value of n. It should be between 1 and %d\n", numBits);
+        return 0;
     }
-
-    return decimalNum;
+    // Use bitwise AND and right shift to get the most significant bits
+    unsigned int result = num >> (numBits - n);
+    return result;
 }
+
+
 
 int hash_function(int id, int depth) {
-  int bin_value= checkNBits(id, depth);
-  return binaryToDecimal(bin_value);
+  return checkNBits(id, depth);;
 
 }
 
@@ -172,9 +162,28 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
 }
 
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
-  int  index = hash_function(record.id, 8);
-  //printf("index= %d\n", index);
+  int  index = hash_function(record.id, fd->opened_files[indexDesc].global_depth);
+  if(fd->opened_files[indexDesc].oraia_petalouda[fd->opened_files[indexDesc].hash_table[index]].num_of_records==fd->opened_files[indexDesc].capacity) {
+    if(fd->opened_files[indexDesc].oraia_petalouda[fd->opened_files[indexDesc].hash_table[index]].local_depth < fd->opened_files[indexDesc].global_depth ) {
+      fd->opened_files[indexDesc].num_of_buckets++;
+      fd->opened_files[indexDesc].oraia_petalouda=(Bucket_info*)realloc(fd->opened_files[indexDesc].oraia_petalouda, (fd->opened_files[indexDesc].num_of_buckets)*sizeof(Bucket_info));
 
+    }
+
+  }
+  else {
+      
+      BF_Block* block;
+      BF_Block_Init(block);
+      CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index], block));
+      void* data=BF_Block_GetData(block);
+      Record* rec=data;
+      rec[fd->opened_files[indexDesc].oraia_petalouda[fd->opened_files[indexDesc].hash_table[index]].num_of_records]=record;
+      fd->opened_files[indexDesc].oraia_petalouda[fd->opened_files[indexDesc].hash_table[index]].num_of_records++;
+      BF_Block_SetDirty(block);
+      CALL_BF(BF_UnpinBlock(block));
+
+  }
   return HT_OK;
 }
 

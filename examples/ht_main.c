@@ -5,8 +5,8 @@
 #include "bf.h"
 #include "hash_file.h"
 
-#define RECORDS_NUM 100 // you can change it if you want
-#define GLOBAL_DEPT 2 // you can change it if you want
+#define RECORDS_NUM 2 // you can change it if you want
+#define GLOBAL_DEPT 1 // you can change it if you want
 #define FILE_NAME "data.db"
 
 const char* names[] = {
