@@ -23,6 +23,8 @@ typedef struct HT_info {
 	int capacity;
 	char filename[50];
 	//int bytes_size;
+	int* hash_table;
+	int table_size;
 	int  file_desc;
 	int num_of_buckets;
 	Bucket_info* oraia_petalouda;
