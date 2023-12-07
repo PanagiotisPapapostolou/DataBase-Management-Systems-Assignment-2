@@ -161,7 +161,10 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
 }
 
 HT_ErrorCode HT_CloseFile(int indexDesc) {
-  //insert code here
+  int file_desc=fd->opened_files[indexDesc].file_desc;
+  CALL_BF(BF_Close(file_desc));
+  free(&fd->opened_files[indexDesc]);
+  
   return HT_OK;
 }
 
@@ -240,6 +243,63 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 }
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
-  //insert code here
+  BF_Block* block;
+  BF_Block_Init(&block);
+  if (id!=NULL) {
+   int index=hash_function(*id, fd->opened_files[indexDesc].global_depth);
+   CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index].block_id, block));
+   void *data=BF_Block_GetData(block);
+   Record* rec=data;
+   for(int i=0;i<fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records;i++){
+      if(rec[i].id==id) {
+        printf("%s, %s, %s, %d",rec[i].name, rec[i].surname, rec[i].city, rec[i].id);
+      }
+    }
+  }
+  else{
+    for(int i=0; i<fd->opened_files[indexDesc].num_of_buckets; i++) {
+      CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, 0, block));
+      void *data=BF_Block_GetData(block);
+      Record* rec=data;
+      for(int j=0;j<fd->opened_files[indexDesc].bucket_infos[i].num_of_records;j++){
+      if(rec[j].id==id) {
+        printf("%s, %s, %s, %d",rec[j].name, rec[j].surname, rec[j].city, rec[j].id);
+      }
+    }
+    }
+  }
+  CALL_BF(BF_UnpinBlock(block));
+  return HT_OK;
+  
+}
+
+
+
+HT_ErrorCode HashStatistics(char* filename){
+  int sum=0;
+  int min=9;
+  int max=-1;
+  int index;
+  for(int i=0;i<fd->num_of_files;i++) {
+    if(strcmp(fd->opened_files[i].filename,filename)==0) {
+      index=i;
+      break;
+    }
+  }
+  for(int i=0;i<fd->opened_files[index].num_of_buckets;i++) {
+    if(fd->opened_files[index].bucket_infos[i].num_of_records<min){
+      min=fd->opened_files[index].bucket_infos[i].num_of_records;
+    }
+    if(fd->opened_files[index].bucket_infos[i].num_of_records>max){
+      max=fd->opened_files[index].bucket_infos[i].num_of_records;
+    }
+    sum+=fd->opened_files[index].bucket_infos[i].num_of_records;
+
+  }
+  int avg=sum/fd->opened_files[index].num_of_buckets;
+  printf("Number of blocks in file is: %d\n", fd->opened_files[index].num_of_buckets);
+  printf("Most recosrds in one bucket are: %d\n", max);
+  printf("Least records in one bucket are: %d\n", min);
+  printf("Average number of blocks per bucket is: %d\n", avg);
   return HT_OK;
 }
