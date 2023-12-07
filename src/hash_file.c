@@ -162,7 +162,7 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
 
 HT_ErrorCode HT_CloseFile(int indexDesc) {
   int file_desc=fd->opened_files[indexDesc].file_desc;
-  CALL_BF(BF_Close(file_desc));
+  CALL_BF(BF_CloseFile(file_desc));
   free(&fd->opened_files[indexDesc]);
   
   return HT_OK;
@@ -255,18 +255,19 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       fd->opened_files[indexDesc].table_size *= 2;
 
       for (int i = 0; i < fd->opened_files[indexDesc].table_size; i++) {
-        printf("%s\n", new_hash_table[i].binary_id);
+        //printf("%s\n", new_hash_table[i].binary_id);
         char* cur_binary_id = new_hash_table[i].binary_id;
         char* prev_binary_id = (char*)malloc(sizeof(char) * fd->opened_files[indexDesc].global_depth);
 
-        for (int j = 0; j < fd->opened_files[indexDesc].global_depth; j++) {
+        for (int j = 0; j < fd->opened_files[indexDesc].global_depth-1; j++) {
 
           prev_binary_id[j] = cur_binary_id[j];
         }
-        //prev_binary_id[fd->opened_files[indexDesc].global_depth] = '\0';
+
 
         int block_id;
         for (int j = 0; j < fd->opened_files[indexDesc].table_size/2; j++) {
+          printf("%s=%s\n", new_hash_table[j].binary_id, prev_binary_id);
           if (strcmp(fd->opened_files[indexDesc].hash_table[j].binary_id, prev_binary_id) == 0) {
             block_id = fd->opened_files[indexDesc].hash_table[j].block_id;
             printf("Mpike%s\n", prev_binary_id);
@@ -276,9 +277,15 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
         new_hash_table[i].block_id = block_id;
       }
-      free(fd->opened_files[indexDesc].hash_table);
-      fd->opened_files[indexDesc].hash_table = new_hash_table;
+      //free(fd->opened_files[indexDesc].hash_table);
 
+      fd->opened_files[indexDesc].hash_table = (hash_table_type*)realloc(fd->opened_files[indexDesc].hash_table, sizeof(hash_table_type) * fd->opened_files[indexDesc].table_size);
+      fd->opened_files[indexDesc].hash_table = new_hash_table;
+      for(int i=0;i<fd->opened_files[indexDesc].table_size;i++){
+        //printf("%d----\n", new_hash_table[i].block_id);
+      }
+
+      printf("hi\n");
       fd->opened_files[indexDesc].num_of_buckets++;
       fd->opened_files[indexDesc].bucket_infos=(Bucket_info*)realloc(fd->opened_files[indexDesc].bucket_infos, (fd->opened_files[indexDesc].num_of_buckets)*sizeof(Bucket_info));
       fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records=0;
@@ -353,8 +360,8 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
    void *data=BF_Block_GetData(block);
    Record* rec=data;
    for(int i=0;i<fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records;i++){
-      if(rec[i].id==id) {
-        printf("%s, %s, %s, %d",rec[i].name, rec[i].surname, rec[i].city, rec[i].id);
+      if(rec[i].id==*id) {
+        printf("%s, %s, %s, %d\n",rec[i].name, rec[i].surname, rec[i].city, rec[i].id);
       }
     }
   }
@@ -364,10 +371,8 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
       void *data=BF_Block_GetData(block);
       Record* rec=data;
       for(int j=0;j<fd->opened_files[indexDesc].bucket_infos[i].num_of_records;j++){
-      if(rec[j].id==id) {
-        printf("%s, %s, %s, %d",rec[j].name, rec[j].surname, rec[j].city, rec[j].id);
+        printf("%s, %s, %s, %d\n",rec[j].name, rec[j].surname, rec[j].city, rec[j].id);
       }
-    }
     }
   }
   CALL_BF(BF_UnpinBlock(block));
