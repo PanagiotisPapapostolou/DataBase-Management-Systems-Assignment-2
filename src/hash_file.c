@@ -92,7 +92,7 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
     fd->opened_files[fd->num_of_files].capacity=BF_BLOCK_SIZE/sizeof(Record);
     strcpy(fd->opened_files[fd->num_of_files].filename, filename);
     fd->opened_files[fd->num_of_files].num_of_buckets = 2;
-    fd->opened_files[fd->num_of_files].oraia_petalouda = (Bucket_info*)malloc(sizeof(Bucket_info) * 2);
+    fd->opened_files[fd->num_of_files].bucket_infos = (Bucket_info*)malloc(sizeof(Bucket_info) * 2);
     fd->opened_files[fd->num_of_files].hash_table = (int*)malloc(sizeof(int) * 2);
     fd->opened_files[fd->num_of_files].table_size=2;
     return HT_OK;
@@ -117,7 +117,7 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
           *indexDesc=fd->num_of_files;
           
           for (int j = 0; j < fd->opened_files[i].num_of_buckets; j++)
-            fd->opened_files[fd->num_of_files].oraia_petalouda[j].local_depth = fd->opened_files[i].oraia_petalouda[j].local_depth;
+            fd->opened_files[fd->num_of_files].bucket_infos[j].local_depth = fd->opened_files[i].bucket_infos[j].local_depth;
           
           for (int j = 0; j < fd->opened_files[i].table_size; j++)
             fd->opened_files[fd->num_of_files].hash_table[j] = fd->opened_files[i].hash_table[j];
@@ -133,7 +133,7 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
       int file_desc;
       CALL_BF(BF_OpenFile(fileName, &file_desc));
       for (int j = 0; j < 2; j++) {
-        fd->opened_files[fd->num_of_files].oraia_petalouda[j].local_depth = 1;
+        fd->opened_files[fd->num_of_files].bucket_infos[j].local_depth = 1;
 
         BF_Block* new_block;
         BF_Block_Init(&new_block);
@@ -163,23 +163,58 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
 
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   int  index = hash_function(record.id, fd->opened_files[indexDesc].global_depth);
-  if(fd->opened_files[indexDesc].oraia_petalouda[fd->opened_files[indexDesc].hash_table[index]].num_of_records==fd->opened_files[indexDesc].capacity) {
-    if(fd->opened_files[indexDesc].oraia_petalouda[fd->opened_files[indexDesc].hash_table[index]].local_depth < fd->opened_files[indexDesc].global_depth ) {
+  if(fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].num_of_records==fd->opened_files[indexDesc].capacity) {
+    if(fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].local_depth < fd->opened_files[indexDesc].global_depth ) {
       fd->opened_files[indexDesc].num_of_buckets++;
-      fd->opened_files[indexDesc].oraia_petalouda=(Bucket_info*)realloc(fd->opened_files[indexDesc].oraia_petalouda, (fd->opened_files[indexDesc].num_of_buckets)*sizeof(Bucket_info));
+      fd->opened_files[indexDesc].bucket_infos=(Bucket_info*)realloc(fd->opened_files[indexDesc].bucket_infos, (fd->opened_files[indexDesc].num_of_buckets)*sizeof(Bucket_info));
+      fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records=0;
+      fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].local_depth=fd->opened_files[indexDesc].global_depth;
+      int flag=0;
+      BF_Block* new_block, *cur_block;
+      BF_Block_Init(&new_block);
+      BF_Block_Init(&cur_block);
+      CALL_BF(BF_AllocateBlock(fd->opened_files[indexDesc].file_desc, new_block));
 
+      CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index], cur_block));
+
+      for (int i = 0; i < fd->opened_files[indexDesc].table_size; i++) {
+        if (fd->opened_files[indexDesc].hash_table[i] == fd->opened_files[indexDesc].hash_table[index]) {
+            void* cur_data = BF_Block_GetData(cur_block);
+            Record* records = cur_data;
+            for(int j=0;j<fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].num_of_records;j++) {
+
+              int count=0;
+              int new_index=hash_function(records[j].id, fd->opened_files[indexDesc].global_depth);
+              if (new_index != index) {
+                fd->opened_files[indexDesc].hash_table[new_index]=fd->opened_files[indexDesc].num_of_buckets;
+                fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].num_of_records--;
+                
+                void* new_data = BF_Block_GetData(new_block);
+                Record* rec=new_data; 
+                rec[fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records]=records[j];
+
+                fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records++;
+              }
+              else{
+                records[count]=records[j];
+                count++;
+              }
+            }
+            
+        }
+      }
     }
 
   }
   else {
       
       BF_Block* block;
-      BF_Block_Init(block);
+      BF_Block_Init(&block);
       CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index], block));
       void* data=BF_Block_GetData(block);
       Record* rec=data;
-      rec[fd->opened_files[indexDesc].oraia_petalouda[fd->opened_files[indexDesc].hash_table[index]].num_of_records]=record;
-      fd->opened_files[indexDesc].oraia_petalouda[fd->opened_files[indexDesc].hash_table[index]].num_of_records++;
+      rec[fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].num_of_records]=record;
+      fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].num_of_records++;
       BF_Block_SetDirty(block);
       CALL_BF(BF_UnpinBlock(block));
 

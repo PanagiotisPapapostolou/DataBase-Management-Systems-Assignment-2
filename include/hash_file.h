@@ -27,7 +27,7 @@ typedef struct HT_info {
 	int table_size;
 	int  file_desc;
 	int num_of_buckets;
-	Bucket_info* oraia_petalouda;
+	Bucket_info* bucket_infos;
 } HT_info;
 
 // Mia oraia petalouda, mia oraia petalouda. Mia oraia... petalouda ai sto diaolo!!
