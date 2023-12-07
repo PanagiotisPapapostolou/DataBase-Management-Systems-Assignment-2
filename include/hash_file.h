@@ -1,6 +1,11 @@
 #ifndef HASH_FILE_H
 #define HASH_FILE_H
 
+typedef struct hash_table_type1 {
+  int block_id;
+  char* binary_id;
+} hash_table_type;
+
 typedef enum HT_ErrorCode {
   HT_OK,
   HT_ERROR
@@ -23,7 +28,7 @@ typedef struct HT_info {
 	int capacity;
 	char filename[50];
 	//int bytes_size;
-	int* hash_table;
+	hash_table_type* hash_table;
 	int table_size;
 	int  file_desc;
 	int num_of_buckets;
