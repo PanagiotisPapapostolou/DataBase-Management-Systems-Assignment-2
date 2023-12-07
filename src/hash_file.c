@@ -14,7 +14,7 @@
     return HT_ERROR;        \
   }                         \
 }
-
+//initialize the file details data structure
 File_details* fd;
 
 char* intToBinary(int num, int depth) {
@@ -76,7 +76,7 @@ int hash_function(int id, int depth) {
 }
 
 
-
+//allocate the needed memory for the file details structure
 HT_ErrorCode HT_Init() {
   fd=(File_details*)malloc(sizeof(File_details)); 
   fd->opened_files=(HT_info*)malloc(MAX_OPEN_FILES*sizeof(HT_info));
@@ -86,6 +86,7 @@ HT_ErrorCode HT_Init() {
 }
 
 HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
+  //initialize the information o a specific file, provided you dont surpass the maximum number of open files 
   CALL_BF(BF_CreateFile(filename));
   if(fd->num_of_files+1<MAX_OPEN_FILES) {
     fd->opened_files[fd->num_of_files].global_depth=depth;
@@ -104,10 +105,12 @@ HT_ErrorCode HT_CreateIndex(const char *filename, int depth) {
 }
 
 HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
-  if(fd->num_of_files+1<MAX_OPEN_FILES) {\
+  //if the number of files is not passed 
+  if(fd->num_of_files+1<MAX_OPEN_FILES) {
     int flag=1;
+    //and the user is not trying to open the same  file  more than once in a row
     if(strcmp(fd->opened_files[fd->num_of_files].filename, fileName)!=0){
-      
+      //searc if the file is already opened somewhere else in the array and copy the information to the new location
       for(int i=0; i<fd->num_of_files;i++) {
         if(strcmp(fd->opened_files[i].filename, fileName)==0) {
           fd->opened_files[fd->num_of_files].global_depth=fd->opened_files[i].global_depth;
@@ -131,6 +134,7 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
         }
       }
     }
+    //other wise just open a new file
     if(flag){
       int file_desc;
       CALL_BF(BF_OpenFile(fileName, &file_desc));
@@ -169,10 +173,12 @@ HT_ErrorCode HT_CloseFile(int indexDesc) {
 }
 
 HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
+  //if the capacity if a specific block is reached and the global depth is less than the local depth 
   int  index = hash_function(record.id, fd->opened_files[indexDesc].global_depth);
   if(fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records==fd->opened_files[indexDesc].capacity) {
     if(fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].local_depth < fd->opened_files[indexDesc].global_depth ) {
       printf("Hello1\n");
+      //perform bucket spliting by allocating a new block in the file 
       fd->opened_files[indexDesc].num_of_buckets++;
       fd->opened_files[indexDesc].bucket_infos=(Bucket_info*)realloc(fd->opened_files[indexDesc].bucket_infos, (fd->opened_files[indexDesc].num_of_buckets)*sizeof(Bucket_info));
       fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records=0;
@@ -185,6 +191,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
       CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index].block_id, cur_block));
       int count=0;
+      //reassign pointer of the table that was pointing to the block that was full between it self and the newly allocated block 
       for (int i = 0; i < fd->opened_files[indexDesc].table_size; i++) {
         if (fd->opened_files[indexDesc].hash_table[i].block_id == fd->opened_files[indexDesc].hash_table[index].block_id) {
             void* cur_data = BF_Block_GetData(cur_block);
@@ -194,7 +201,9 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 
               
               int new_index=hash_function(records[j].id, fd->opened_files[indexDesc].global_depth);
+              //if the has value of and id is different that before 
               if (new_index != index) {
+                //then move that record to the new block
                 fd->opened_files[indexDesc].hash_table[new_index].block_id=fd->opened_files[indexDesc].num_of_buckets;
                 fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records--;
                 fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].local_depth++;
@@ -206,6 +215,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
                 fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records++;
               }
               else{
+                //if not then replace a record that was moved from the block that was full with one that stays in that block 
                 records[count]=records[j];
                 count++;
               }
@@ -213,6 +223,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
             
         }
       }
+      //add new record to the block 
       void* onoufrios=BF_Block_GetData(cur_block);
       Record* rec=onoufrios;
       rec[count]=record;
@@ -354,6 +365,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
   BF_Block* block;
   BF_Block_Init(&block);
+  //if id is not  a null pointer then seacrch for the records that have that id with the use of the hash function
   if (id!=NULL) {
    int index=hash_function(*id, fd->opened_files[indexDesc].global_depth);
    CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index].block_id, block));
@@ -365,6 +377,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
       }
     }
   }
+  //otherwise just print all the records
   else{
     for(int i=0; i<fd->opened_files[indexDesc].num_of_buckets; i++) {
       CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, 0, block));
@@ -380,6 +393,7 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
 }
 
 HT_ErrorCode HashStatistics(char* filename){
+  //prints the average number of records per bucket, the most records in a bucket, the least records in a bucket and the number of blocks 
   int sum=0;
   int min=9;
   int max=-1;
