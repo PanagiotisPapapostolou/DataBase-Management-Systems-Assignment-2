@@ -161,7 +161,10 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
 }
 
 HT_ErrorCode HT_CloseFile(int indexDesc) {
-  //insert code here
+  int file_desc=fd->opened_files[indexDesc].file_desc;
+  CALL_BF(BF_Close(file_desc));
+  free(&fd->opened_files[indexDesc]);
+  
   return HT_OK;
 }
 
@@ -169,6 +172,7 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
   int  index = hash_function(record.id, fd->opened_files[indexDesc].global_depth);
   if(fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records==fd->opened_files[indexDesc].capacity) {
     if(fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].local_depth < fd->opened_files[indexDesc].global_depth ) {
+      printf("Hello1\n");
       fd->opened_files[indexDesc].num_of_buckets++;
       fd->opened_files[indexDesc].bucket_infos=(Bucket_info*)realloc(fd->opened_files[indexDesc].bucket_infos, (fd->opened_files[indexDesc].num_of_buckets)*sizeof(Bucket_info));
       fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records=0;
@@ -213,33 +217,188 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       Record* rec=onoufrios;
       rec[count]=record;
       fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records=count+2;
+      BF_Block_SetDirty(cur_block);
+      BF_Block_SetDirty(new_block);
+      CALL_BF(BF_UnpinBlock(cur_block));
+      CALL_BF(BF_UnpinBlock(new_block));
     }
     else {
-      hash_table_type* new_hash_table = (hash_table_type*)realloc(fd->opened_files[indexDesc].hash_table, sizeof(hash_table_type)*2*fd->opened_files[indexDesc].table_size);
-      fd->opened_files[indexDesc].global_depth++;
-
-      for (int i = fd->opened_files[indexDesc].table_size; i < 2*fd->opened_files[indexDesc].table_size - 1; i++) {
-        fd->opened_files[indexDesc].hash_table[i].block_id = fd->opened_files[indexDesc].hash_table[fd->opened_files[indexDesc].table_size - 1].block_id;
+      hash_table_type* new_hash_table = (hash_table_type*)malloc(sizeof(hash_table_type)*2*fd->opened_files[indexDesc].table_size);
+      
+      for (int i = 0; i < fd->opened_files[indexDesc].table_size; i++) {
+        new_hash_table[i].binary_id = (char*)malloc(sizeof(char) * 50);
+        new_hash_table[i].block_id = fd->opened_files[indexDesc].hash_table[i].block_id;
+        strcpy(new_hash_table[i].binary_id, fd->opened_files[indexDesc].hash_table[i].binary_id);
       }
+
+      int counter = 0;
+      for (int i = fd->opened_files[indexDesc].table_size; i < 2*fd->opened_files[indexDesc].table_size; i++) {
+        new_hash_table[i].binary_id = new_hash_table[counter++].binary_id;
+      }
+
+      for (int i = 0; i < fd->opened_files[indexDesc].table_size; i++) {
+        char* new_binary_id = (char*)malloc(strlen(new_hash_table[i].binary_id)+2);
+        strcpy(new_binary_id, "0");
+        strcat(new_binary_id, new_hash_table[i].binary_id);
+        new_hash_table[i].binary_id = new_binary_id;
+      }
+
+      for (int i = fd->opened_files[indexDesc].table_size; i < 2*fd->opened_files[indexDesc].table_size; i++) {
+        char* new_binary_id = (char*)malloc(strlen(new_hash_table[i].binary_id)+2);
+        strcpy(new_binary_id, "1");
+        strcat(new_binary_id, new_hash_table[i].binary_id);
+        new_hash_table[i].binary_id = new_binary_id;
+      }
+
+
+      fd->opened_files[indexDesc].global_depth++;
+      fd->opened_files[indexDesc].table_size *= 2;
+
+      for (int i = 0; i < fd->opened_files[indexDesc].table_size; i++) {
+        printf("%s\n", new_hash_table[i].binary_id);
+        char* cur_binary_id = new_hash_table[i].binary_id;
+        char* prev_binary_id = (char*)malloc(sizeof(char) * fd->opened_files[indexDesc].global_depth);
+
+        for (int j = 0; j < fd->opened_files[indexDesc].global_depth; j++) {
+
+          prev_binary_id[j] = cur_binary_id[j];
+        }
+        //prev_binary_id[fd->opened_files[indexDesc].global_depth] = '\0';
+
+        int block_id;
+        for (int j = 0; j < fd->opened_files[indexDesc].table_size/2; j++) {
+          if (strcmp(fd->opened_files[indexDesc].hash_table[j].binary_id, prev_binary_id) == 0) {
+            block_id = fd->opened_files[indexDesc].hash_table[j].block_id;
+            printf("Mpike%s\n", prev_binary_id);
+            break;
+          }
+        }
+
+        new_hash_table[i].block_id = block_id;
+      }
+      free(fd->opened_files[indexDesc].hash_table);
+      fd->opened_files[indexDesc].hash_table = new_hash_table;
+
+      fd->opened_files[indexDesc].num_of_buckets++;
+      fd->opened_files[indexDesc].bucket_infos=(Bucket_info*)realloc(fd->opened_files[indexDesc].bucket_infos, (fd->opened_files[indexDesc].num_of_buckets)*sizeof(Bucket_info));
+      fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records=0;
+      fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].local_depth=fd->opened_files[indexDesc].global_depth;
+      int flag=0;
+      BF_Block* new_block, *cur_block;
+      BF_Block_Init(&new_block);
+      BF_Block_Init(&cur_block);
+      CALL_BF(BF_AllocateBlock(fd->opened_files[indexDesc].file_desc, new_block));
+
+      CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index].block_id, cur_block));
+      int count=0;
+      for (int i = 0; i < fd->opened_files[indexDesc].table_size; i++) {
+        if (fd->opened_files[indexDesc].hash_table[i].block_id == fd->opened_files[indexDesc].hash_table[index].block_id) {
+            void* cur_data = BF_Block_GetData(cur_block);
+            
+            Record* records = cur_data;
+            for(int j=0;j<fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records;j++) {
+
+              
+              int new_index=hash_function(records[j].id, fd->opened_files[indexDesc].global_depth);
+              if (new_index != index) {
+                fd->opened_files[indexDesc].hash_table[new_index].block_id=fd->opened_files[indexDesc].num_of_buckets;
+                fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records--;
+                fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].local_depth++;
+                
+                void* new_data = BF_Block_GetData(new_block);
+                Record* rec=new_data; 
+                rec[fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records]=records[j];
+                fd->opened_files[indexDesc].hash_table[new_index].block_id = fd->opened_files[indexDesc].num_of_buckets-1;
+                fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records++;
+              }
+              else{
+                records[count]=records[j];
+                count++;
+              }
+            }
+            
+        }
+      }
+      void* onoufrios=BF_Block_GetData(cur_block);
+      Record* rec=onoufrios;
+      rec[count]=record;
+      fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records=count+2;
+      BF_Block_SetDirty(cur_block);
+      BF_Block_SetDirty(new_block);
+      CALL_BF(BF_UnpinBlock(cur_block));
+      CALL_BF(BF_UnpinBlock(new_block));
     }
   }
   else {
-      
-      BF_Block* block;
-      BF_Block_Init(&block);
-      CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index].block_id, block));
-      void* data=BF_Block_GetData(block);
-      Record* rec=data;
-      rec[fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records]=record;
-      fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records++;
-      BF_Block_SetDirty(block);
-      CALL_BF(BF_UnpinBlock(block));
+    BF_Block* block;
+    BF_Block_Init(&block);
+    CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index].block_id, block));
+    void* data=BF_Block_GetData(block);
+    Record* rec=data;
+    rec[fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records]=record;
+    fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records++;
+    BF_Block_SetDirty(block);
+    CALL_BF(BF_UnpinBlock(block));
 
   }
   return HT_OK;
 }
 
 HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
-  //insert code here
+  BF_Block* block;
+  BF_Block_Init(&block);
+  if (id!=NULL) {
+   int index=hash_function(*id, fd->opened_files[indexDesc].global_depth);
+   CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index].block_id, block));
+   void *data=BF_Block_GetData(block);
+   Record* rec=data;
+   for(int i=0;i<fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records;i++){
+      if(rec[i].id==id) {
+        printf("%s, %s, %s, %d",rec[i].name, rec[i].surname, rec[i].city, rec[i].id);
+      }
+    }
+  }
+  else{
+    for(int i=0; i<fd->opened_files[indexDesc].num_of_buckets; i++) {
+      CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, 0, block));
+      void *data=BF_Block_GetData(block);
+      Record* rec=data;
+      for(int j=0;j<fd->opened_files[indexDesc].bucket_infos[i].num_of_records;j++){
+      if(rec[j].id==id) {
+        printf("%s, %s, %s, %d",rec[j].name, rec[j].surname, rec[j].city, rec[j].id);
+      }
+    }
+    }
+  }
+  CALL_BF(BF_UnpinBlock(block));
+  return HT_OK;
+}
+
+HT_ErrorCode HashStatistics(char* filename){
+  int sum=0;
+  int min=9;
+  int max=-1;
+  int index;
+  for(int i=0;i<fd->num_of_files;i++) {
+    if(strcmp(fd->opened_files[i].filename,filename)==0) {
+      index=i;
+      break;
+    }
+  }
+  for(int i=0;i<fd->opened_files[index].num_of_buckets;i++) {
+    if(fd->opened_files[index].bucket_infos[i].num_of_records<min){
+      min=fd->opened_files[index].bucket_infos[i].num_of_records;
+    }
+    if(fd->opened_files[index].bucket_infos[i].num_of_records>max){
+      max=fd->opened_files[index].bucket_infos[i].num_of_records;
+    }
+    sum+=fd->opened_files[index].bucket_infos[i].num_of_records;
+
+  }
+  int avg=sum/fd->opened_files[index].num_of_buckets;
+  printf("Number of blocks in file is: %d\n", fd->opened_files[index].num_of_buckets);
+  printf("Most recosrds in one bucket are: %d\n", max);
+  printf("Least records in one bucket are: %d\n", min);
+  printf("Average number of blocks per bucket is: %d\n", avg);
   return HT_OK;
 }
