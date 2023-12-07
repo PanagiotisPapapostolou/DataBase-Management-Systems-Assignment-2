@@ -176,23 +176,25 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
       CALL_BF(BF_AllocateBlock(fd->opened_files[indexDesc].file_desc, new_block));
 
       CALL_BF(BF_GetBlock(fd->opened_files[indexDesc].file_desc, fd->opened_files[indexDesc].hash_table[index], cur_block));
-
+      int count=0;
       for (int i = 0; i < fd->opened_files[indexDesc].table_size; i++) {
         if (fd->opened_files[indexDesc].hash_table[i] == fd->opened_files[indexDesc].hash_table[index]) {
             void* cur_data = BF_Block_GetData(cur_block);
+            
             Record* records = cur_data;
             for(int j=0;j<fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].num_of_records;j++) {
 
-              int count=0;
+              
               int new_index=hash_function(records[j].id, fd->opened_files[indexDesc].global_depth);
               if (new_index != index) {
                 fd->opened_files[indexDesc].hash_table[new_index]=fd->opened_files[indexDesc].num_of_buckets;
                 fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].num_of_records--;
+                fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].local_depth++;
                 
                 void* new_data = BF_Block_GetData(new_block);
                 Record* rec=new_data; 
                 rec[fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records]=records[j];
-
+                fd->opened_files[indexDesc].hash_table[new_index]=fd->opened_files[indexDesc].num_of_buckets-1;
                 fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].num_of_buckets-1].num_of_records++;
               }
               else{
@@ -203,8 +205,19 @@ HT_ErrorCode HT_InsertEntry(int indexDesc, Record record) {
             
         }
       }
+      void* onoufrios=BF_Block_GetData(cur_block);
+      Record* rec=onoufrios;
+      rec[count]=record;
+      fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index]].num_of_records=count+2;
     }
+    else {
+      fd->opened_files[indexDesc].hash_table = (int*)realloc(fd->opened_files[indexDesc].hash_table, sizeof(int)*2*fd->opened_files[indexDesc].table_size);
+      fd->opened_files[indexDesc].global_depth++;
 
+      for (int i = fd->opened_files[indexDesc].table_size; i < 2*fd->opened_files[indexDesc].table_size - 1; i++) {
+        fd->opened_files[indexDesc].hash_table[i] = fd->opened_files[indexDesc].hash_table[fd->opened_files[indexDesc].table_size - 1];
+      }
+    }
   }
   else {
       
