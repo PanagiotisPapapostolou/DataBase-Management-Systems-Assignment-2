@@ -166,7 +166,11 @@ HT_ErrorCode HT_OpenIndex(const char *fileName, int *indexDesc){
 
 HT_ErrorCode HT_CloseFile(int indexDesc) {
   int file_desc=fd->opened_files[indexDesc].file_desc;
+<<<<<<< HEAD
+  CALL_BF(BF_Close(file_desc));
+=======
   CALL_BF(BF_CloseFile(file_desc));
+>>>>>>> 73cfb461fbbcdda49dd529b81f10bcc9729fc4a0
   free(&fd->opened_files[indexDesc]);
   
   return HT_OK;
@@ -372,8 +376,13 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
    void *data=BF_Block_GetData(block);
    Record* rec=data;
    for(int i=0;i<fd->opened_files[indexDesc].bucket_infos[fd->opened_files[indexDesc].hash_table[index].block_id].num_of_records;i++){
+<<<<<<< HEAD
+      if(rec[i].id==id) {
+        printf("%s, %s, %s, %d",rec[i].name, rec[i].surname, rec[i].city, rec[i].id);
+=======
       if(rec[i].id==*id) {
         printf("%s, %s, %s, %d\n",rec[i].name, rec[i].surname, rec[i].city, rec[i].id);
+>>>>>>> 73cfb461fbbcdda49dd529b81f10bcc9729fc4a0
       }
     }
   }
@@ -384,11 +393,53 @@ HT_ErrorCode HT_PrintAllEntries(int indexDesc, int *id) {
       void *data=BF_Block_GetData(block);
       Record* rec=data;
       for(int j=0;j<fd->opened_files[indexDesc].bucket_infos[i].num_of_records;j++){
+<<<<<<< HEAD
+      if(rec[j].id==id) {
+        printf("%s, %s, %s, %d",rec[j].name, rec[j].surname, rec[j].city, rec[j].id);
+      }
+    }
+    }
+  }
+  CALL_BF(BF_UnpinBlock(block));
+  return HT_OK;
+  
+}
+
+
+
+HT_ErrorCode HashStatistics(char* filename){
+  int sum=0;
+  int min=9;
+  int max=-1;
+  int index;
+  for(int i=0;i<fd->num_of_files;i++) {
+    if(strcmp(fd->opened_files[i].filename,filename)==0) {
+      index=i;
+      break;
+    }
+  }
+  for(int i=0;i<fd->opened_files[index].num_of_buckets;i++) {
+    if(fd->opened_files[index].bucket_infos[i].num_of_records<min){
+      min=fd->opened_files[index].bucket_infos[i].num_of_records;
+    }
+    if(fd->opened_files[index].bucket_infos[i].num_of_records>max){
+      max=fd->opened_files[index].bucket_infos[i].num_of_records;
+    }
+    sum+=fd->opened_files[index].bucket_infos[i].num_of_records;
+
+  }
+  int avg=sum/fd->opened_files[index].num_of_buckets;
+  printf("Number of blocks in file is: %d\n", fd->opened_files[index].num_of_buckets);
+  printf("Most recosrds in one bucket are: %d\n", max);
+  printf("Least records in one bucket are: %d\n", min);
+  printf("Average number of blocks per bucket is: %d\n", avg);
+=======
         printf("%s, %s, %s, %d\n",rec[j].name, rec[j].surname, rec[j].city, rec[j].id);
       }
     }
   }
   CALL_BF(BF_UnpinBlock(block));
+>>>>>>> 73cfb461fbbcdda49dd529b81f10bcc9729fc4a0
   return HT_OK;
 }
 
