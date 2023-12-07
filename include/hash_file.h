@@ -100,4 +100,8 @@ HT_ErrorCode HT_PrintAllEntries(
 HT_ErrorCode HashStatistics(
 	char* filname
 );
+<<<<<<< HEAD
+=======
+
+>>>>>>> 73cfb461fbbcdda49dd529b81f10bcc9729fc4a0
 #endif // HASH_FILE_H
